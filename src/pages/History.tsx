@@ -32,6 +32,7 @@ export default function History() {
                 <TableHead>Status</TableHead>
                 <TableHead>Assessment</TableHead>
                 <TableHead>Account</TableHead>
+                <TableHead>By</TableHead>
                 <TableHead>Result</TableHead>
                 <TableHead>Started</TableHead>
                 <TableHead />
@@ -45,6 +46,7 @@ export default function History() {
                   </TableCell>
                   <TableCell className="max-w-64 truncate">{r.assessment_url}</TableCell>
                   <TableCell>{r.test_account_label}</TableCell>
+                  <TableCell className="text-muted-foreground">{r.created_by ?? '—'}</TableCell>
                   <TableCell>
                     {r.telemetry?.meta ? (
                       <span>

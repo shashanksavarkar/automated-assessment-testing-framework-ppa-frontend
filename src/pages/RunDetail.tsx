@@ -130,7 +130,11 @@ export default function RunDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-5 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Started by</p>
+              <p className="font-medium">{run.created_by ?? '—'}</p>
+            </div>
             <div>
               <p className="text-muted-foreground">Account</p>
               <p className="font-medium">{run.test_account_label}</p>

@@ -76,21 +76,39 @@ export interface RunView {
   finished_at_fmt?: string | null
   queue_position?: number | null
   telemetry?: Telemetry | null
+  created_by?: string | null
+}
+
+export interface Me {
+  name: string
+}
+
+export class ApiError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // send the session cookie along with every request
     ...init,
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new Error(body?.detail || `Request failed: ${res.status}`)
+    throw new ApiError(res.status, body?.detail || `Request failed: ${res.status}`)
   }
   return res.json() as Promise<T>
 }
 
 export const api = {
+  login: (name: string, password: string) =>
+    request<Me>('/auth/login', { method: 'POST', body: JSON.stringify({ name, password }) }),
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+  me: () => request<Me>('/auth/me'),
   getConfig: () => request<ConfigResponse>('/config'),
   createRun: (body: RunCreateRequest) =>
     request<{ id: string }>('/runs', { method: 'POST', body: JSON.stringify(body) }),
