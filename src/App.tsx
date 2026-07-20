@@ -7,11 +7,11 @@ import Login from '@/pages/Login'
 import { AuthProvider, useAuth } from '@/lib/auth'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { name, loading } = useAuth()
+  const { email, loading } = useAuth()
   const location = useLocation()
 
   if (loading) return <p className="text-muted-foreground">Loading…</p>
-  if (!name) return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  if (!email) return <Navigate to="/login" state={{ from: location.pathname }} replace />
   return <>{children}</>
 }
 

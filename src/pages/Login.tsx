@@ -10,7 +10,7 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -22,7 +22,7 @@ export default function Login() {
     setError(null)
     setSubmitting(true)
     try {
-      await login(name.trim(), password)
+      await login(email.trim(), password)
       navigate(from, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed.')
@@ -41,8 +41,8 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" required autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

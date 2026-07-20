@@ -2,40 +2,40 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { api } from '@/lib/api'
 
 interface AuthState {
-  name: string | null
+  email: string | null
   loading: boolean
-  login: (name: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [name, setName] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     api
       .me()
-      .then((me) => setName(me.name))
-      .catch(() => setName(null))
+      .then((me) => setEmail(me.email))
+      .catch(() => setEmail(null))
       .finally(() => setLoading(false))
   }, [])
 
-  async function login(name: string, password: string) {
-    const me = await api.login(name, password)
-    setName(me.name)
+  async function login(email: string, password: string) {
+    const me = await api.login(email, password)
+    setEmail(me.email)
   }
 
   async function logout() {
     try {
       await api.logout()
     } finally {
-      setName(null)
+      setEmail(null)
     }
   }
 
-  return <AuthContext.Provider value={{ name, loading, login, logout }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ email, loading, login, logout }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth'
 export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { name, logout } = useAuth()
+  const { email, logout } = useAuth()
 
   const navLink = (to: string, label: string) => (
     <Link
@@ -35,7 +35,7 @@ export default function Layout() {
             {navLink('/', 'New Run')}
             {navLink('/history', 'History')}
             <span className="flex items-center gap-2 border-l pl-6 text-sm text-muted-foreground">
-              {name}
+              {email}
               <button onClick={handleLogout} className="underline underline-offset-2 hover:text-foreground">
                 Log out
               </button>

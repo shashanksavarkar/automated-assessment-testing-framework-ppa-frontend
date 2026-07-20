@@ -82,7 +82,7 @@ export interface RunView {
 }
 
 export interface Me {
-  name: string
+  email: string
 }
 
 export class ApiError extends Error {
@@ -93,6 +93,19 @@ export class ApiError extends Error {
   }
 }
 
+// FastAPI's `detail` is usually a plain string (our own HTTPException calls), but on a
+// 422 Pydantic validation error it's a list of {msg, loc, ...} objects instead -- rendering
+// that directly produced a literal "[object Object]" in the UI. Handle both shapes.
+function extractErrorMessage(body: unknown, fallback: string): string {
+  const detail = (body as { detail?: unknown } | null)?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const msgs = detail.map((e) => (e as { msg?: string })?.msg).filter((m): m is string => !!m)
+    if (msgs.length) return msgs.join('; ')
+  }
+  return fallback
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -101,14 +114,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new ApiError(res.status, body?.detail || `Request failed: ${res.status}`)
+    throw new ApiError(res.status, extractErrorMessage(body, `Request failed: ${res.status}`))
   }
   return res.json() as Promise<T>
 }
 
 export const api = {
-  login: (name: string, password: string) =>
-    request<Me>('/auth/login', { method: 'POST', body: JSON.stringify({ name, password }) }),
+  login: (email: string, password: string) =>
+    request<Me>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
   me: () => request<Me>('/auth/me'),
   getConfig: () => request<ConfigResponse>('/config'),
