@@ -162,6 +162,25 @@ export default function RunDetail() {
         </CardContent>
       </Card>
 
+      {isFinal && t && t.meta.submitted !== undefined && (
+        <div
+          className={
+            t.meta.submitted
+              ? 'rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300'
+              : 'rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive'
+          }
+        >
+          {t.meta.submitted ? (
+            <p className="font-medium">✓ Assessment submitted successfully.</p>
+          ) : (
+            <>
+              <p className="font-medium">✗ Assessment submission could not be confirmed.</p>
+              {t.meta.submission_note && <p className="mt-1">{t.meta.submission_note}</p>}
+            </>
+          )}
+        </div>
+      )}
+
       {t && (
         <Card>
           <CardContent className="space-y-4 py-4">

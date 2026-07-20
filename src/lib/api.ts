@@ -60,6 +60,8 @@ export interface Telemetry {
     questions?: number
     pass?: number
     fail?: number
+    submitted?: boolean
+    submission_note?: string
   }
   timeline: TimelineEvent[]
   questions: Question[]
