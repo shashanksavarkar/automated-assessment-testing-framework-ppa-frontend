@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/StatusBadge'
 import { api, type Question, type RunView } from '@/lib/api'
 
@@ -42,10 +43,13 @@ function QuestionCard({ q }: { q: Question }) {
   )
 }
 
+const FINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
+
 export default function RunDetail() {
   const { runId } = useParams<{ runId: string }>()
   const [run, setRun] = useState<RunView | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const pollingRef = useRef(true)
   const timelineRef = useRef<HTMLDivElement>(null)
 
@@ -57,7 +61,7 @@ export default function RunDetail() {
       try {
         const data = await api.getRun(runId!)
         setRun(data)
-        if (data.status === 'completed' || data.status === 'failed') {
+        if (FINAL_STATUSES.has(data.status)) {
           pollingRef.current = false
         }
       } catch {
@@ -83,7 +87,23 @@ export default function RunDetail() {
   if (!run) return <p className="text-muted-foreground">Loading…</p>
 
   const t = run.telemetry
-  const isFinal = run.status === 'completed' || run.status === 'failed'
+  const isFinal = FINAL_STATUSES.has(run.status)
+  const canCancel = run.status === 'queued' || run.status === 'running'
+
+  async function handleCancel() {
+    if (!runId) return
+    if (!window.confirm('Stop this run? This kills the browser/automation process immediately.')) return
+    setCancelling(true)
+    try {
+      await api.cancelRun(runId)
+      setRun(await api.getRun(runId)) // reflect the new status immediately; the poll loop keeps it fresh after
+    } catch {
+      // Polling (still active, since cancelling is only offered on a non-final run) will
+      // pick up the real state on its own if this request itself failed.
+    } finally {
+      setCancelling(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -100,7 +120,14 @@ export default function RunDetail() {
               {run.assessment_url}
             </a>
           </div>
-          <StatusBadge status={run.status} />
+          <div className="flex items-center gap-3">
+            <StatusBadge status={run.status} />
+            {canCancel && (
+              <Button variant="destructive" size="sm" disabled={cancelling} onClick={handleCancel}>
+                {cancelling ? 'Stopping…' : 'Stop run'}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4 text-sm">
@@ -160,7 +187,7 @@ export default function RunDetail() {
         </Card>
       )}
 
-      {isFinal && run.status === 'failed' && run.error && (
+      {isFinal && (run.status === 'failed' || run.status === 'cancelled') && run.error && (
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="space-y-1 py-4 text-sm">
             <p className="text-destructive">{run.error}</p>
@@ -172,10 +199,10 @@ export default function RunDetail() {
       {isFinal && t && t.questions.length > 0 && (
         <>
           <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-            This tool's PASSED/FAILED verdicts for coding questions are self-reported and not
-            fully reliable yet (known open issue — see <code>v1_logs.md</code> bug #8).
-            Cross-check important results against the assessment platform's own dashboard
-            before trusting them.
+            PASSED/FAILED verdicts for coding questions are self-reported by watching the
+            platform's own Run results (not just re-derived locally) before Submit is ever
+            clicked. Still, this reads the page's DOM heuristically — for anything
+            high-stakes, cross-check against the assessment platform's own dashboard.
           </div>
           <div className="space-y-3">
             {t.questions.map((q) => (

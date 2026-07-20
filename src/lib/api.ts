@@ -56,7 +56,7 @@ export interface Telemetry {
   questions: Question[]
 }
 
-export type RunStatus = 'queued' | 'running' | 'completed' | 'failed'
+export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
 
 export interface RunView {
   id: string
@@ -96,4 +96,5 @@ export const api = {
     request<{ id: string }>('/runs', { method: 'POST', body: JSON.stringify(body) }),
   listRuns: () => request<RunView[]>('/runs'),
   getRun: (id: string) => request<RunView>(`/runs/${id}`),
+  cancelRun: (id: string) => request<{ ok: boolean }>(`/runs/${id}/cancel`, { method: 'POST' }),
 }

@@ -99,6 +99,11 @@ export default function NewRun() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                This account's progress persists on the platform across runs — it does not
+                reset. A previous run's answers stay submitted, so a new run resumes from
+                where the last one left off rather than starting the assessment over.
+              </p>
             </div>
 
             <div className="space-y-2">
