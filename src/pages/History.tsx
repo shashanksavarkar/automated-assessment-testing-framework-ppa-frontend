@@ -44,7 +44,10 @@ export default function History() {
                   <TableCell>
                     <StatusBadge status={r.status} />
                   </TableCell>
-                  <TableCell className="max-w-64 truncate">{r.assessment_url}</TableCell>
+                  <TableCell className="max-w-64">
+                    <p className="truncate">{r.assessment_url}</p>
+                    {r.note && <p className="truncate text-xs text-muted-foreground">{r.note}</p>}
+                  </TableCell>
                   <TableCell>{r.test_account_label}</TableCell>
                   <TableCell className="text-muted-foreground">{r.created_by ?? '—'}</TableCell>
                   <TableCell>

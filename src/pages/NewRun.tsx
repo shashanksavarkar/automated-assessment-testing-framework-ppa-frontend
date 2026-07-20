@@ -15,11 +15,13 @@ import {
 import { api, type ConfigResponse } from '@/lib/api'
 
 const CUSTOM_MODEL = '__custom__'
+const MAX_RECENT_URLS = 8
 
 export default function NewRun() {
   const navigate = useNavigate()
   const [config, setConfig] = useState<ConfigResponse | null>(null)
   const [assessmentUrl, setAssessmentUrl] = useState('')
+  const [note, setNote] = useState('')
   const [headless, setHeadless] = useState(true)
   const [account, setAccount] = useState('Default')
   const [modelChoice, setModelChoice] = useState<string>('')
@@ -27,6 +29,8 @@ export default function NewRun() {
   const [maxRetries, setMaxRetries] = useState(2)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [recentUrls, setRecentUrls] = useState<string[]>([])
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
     api.getConfig().then((c) => {
@@ -35,6 +39,24 @@ export default function NewRun() {
       setModelChoice(c.default_model)
       setMaxRetries(c.default_retries)
     })
+  }, [])
+
+  useEffect(() => {
+    api
+      .listRuns()
+      .then((runs) => {
+        const seen = new Set<string>()
+        const urls: string[] = []
+        for (const r of runs) {
+          if (!seen.has(r.assessment_url)) {
+            seen.add(r.assessment_url)
+            urls.push(r.assessment_url)
+          }
+          if (urls.length >= MAX_RECENT_URLS) break
+        }
+        setRecentUrls(urls)
+      })
+      .catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -56,6 +78,7 @@ export default function NewRun() {
         test_account_label: account,
         model,
         max_retries: maxRetries,
+        note: note.trim() || null,
       })
       navigate(`/runs/${id}`)
     } catch (err) {
@@ -78,85 +101,121 @@ export default function NewRun() {
               id="assessment_url"
               type="url"
               required
+              list="recent-assessment-urls"
               placeholder="https://instatest.programmingpathshala.com/assessment/..."
               value={assessmentUrl}
               onChange={(e) => setAssessmentUrl(e.target.value)}
             />
+            {recentUrls.length > 0 && (
+              <datalist id="recent-assessment-urls">
+                {recentUrls.map((u) => (
+                  <option key={u} value={u} />
+                ))}
+              </datalist>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Test candidate account</Label>
-              <Select value={account} onValueChange={(v) => v && setAccount(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(config?.accounts ?? ['Default']).map((label) => (
-                    <SelectItem key={label} value={label}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                This account's progress persists on the platform across runs — it does not
-                reset. A previous run's answers stay submitted, so a new run resumes from
-                where the last one left off rather than starting the assessment over.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>LLM model (NVIDIA NIM)</Label>
-              <Select value={modelChoice} onValueChange={(v) => v && setModelChoice(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(config?.recommended_models ?? []).map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={CUSTOM_MODEL}>Custom / other model...</SelectItem>
-                </SelectContent>
-              </Select>
-              {modelChoice === CUSTOM_MODEL && (
-                <Input
-                  className="mt-2"
-                  placeholder="e.g. meta/llama-3.1-8b-instruct"
-                  value={customModel}
-                  onChange={(e) => setCustomModel(e.target.value)}
-                />
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label>Test candidate account</Label>
+            <Select value={account} onValueChange={(v) => v && setAccount(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(config?.accounts ?? ['Default']).map((label) => (
+                  <SelectItem key={label} value={label}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              This account's progress persists on the platform across runs — it does not
+              reset. A previous run's answers stay submitted, so a new run resumes from
+              where the last one left off rather than starting the assessment over.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="max_retries">Coding retry attempts (1-5)</Label>
-              <Input
-                id="max_retries"
-                type="number"
-                min={1}
-                max={5}
-                value={maxRetries}
-                onChange={(e) => setMaxRetries(Number(e.target.value))}
-              />
-            </div>
-            <div className="flex items-end pb-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="headless"
-                  checked={headless}
-                  onCheckedChange={(v) => setHeadless(v === true)}
-                />
-                <Label htmlFor="headless" className="font-normal">
-                  Run headless (no visible browser window)
-                </Label>
+          <div className="space-y-2">
+            <Label htmlFor="note">Note (optional)</Label>
+            <Input
+              id="note"
+              placeholder="e.g. testing the new Coloring a Banner question"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Shown alongside this run in History, so it's easy to tell runs apart later.</p>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              {showAdvanced ? '▾ Hide advanced settings' : '▸ Advanced settings (model, retries, browser)'}
+            </button>
+          </div>
+
+          {showAdvanced && (
+            <div className="space-y-4 rounded-md border p-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>LLM model (NVIDIA NIM)</Label>
+                  <Select value={modelChoice} onValueChange={(v) => v && setModelChoice(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(config?.recommended_models ?? []).map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={CUSTOM_MODEL}>Custom / other model...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {modelChoice === CUSTOM_MODEL && (
+                    <Input
+                      className="mt-2"
+                      placeholder="e.g. meta/llama-3.1-8b-instruct"
+                      value={customModel}
+                      onChange={(e) => setCustomModel(e.target.value)}
+                    />
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="max_retries">Coding retry attempts (1-5)</Label>
+                  <Input
+                    id="max_retries"
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={maxRetries}
+                    onChange={(e) => setMaxRetries(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="headless"
+                    checked={headless}
+                    onCheckedChange={(v) => setHeadless(v === true)}
+                  />
+                  <Label htmlFor="headless" className="font-normal">
+                    Run headless (no visible browser window)
+                  </Label>
+                </div>
+                <p className="pl-6 text-xs text-muted-foreground">
+                  Uncheck this to watch the browser drive the assessment live — useful for
+                  spot-checking a failure. Leave it checked for normal unattended runs.
+                </p>
               </div>
             </div>
-          </div>
+          )}
 
           {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -164,9 +223,16 @@ export default function NewRun() {
             </p>
           )}
 
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Starting…' : 'Run assessment'}
-          </Button>
+          <div className="space-y-2">
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Starting…' : 'Run assessment'}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Typically takes 10–15 minutes depending on the number of sections. Runs happen
+              one at a time — you'll land on a live progress page next, and if another run is
+              already in progress, yours will wait in queue.
+            </p>
+          </div>
         </form>
       </CardContent>
     </Card>

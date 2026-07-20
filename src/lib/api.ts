@@ -16,6 +16,7 @@ export interface RunCreateRequest {
   test_account_label: string
   model?: string | null
   max_retries: number
+  note?: string | null
 }
 
 export interface QuestionAttempt {
@@ -77,6 +78,7 @@ export interface RunView {
   queue_position?: number | null
   telemetry?: Telemetry | null
   created_by?: string | null
+  note?: string | null
 }
 
 export interface Me {

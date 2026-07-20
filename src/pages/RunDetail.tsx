@@ -119,6 +119,7 @@ export default function RunDetail() {
             >
               {run.assessment_url}
             </a>
+            {run.note && <p className="mt-1 text-sm">{run.note}</p>}
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={run.status} />
