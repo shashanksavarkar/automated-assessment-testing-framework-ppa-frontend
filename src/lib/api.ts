@@ -3,9 +3,17 @@
 // deployment the same relative path works as long as the backend is reachable at /api on
 // whatever host serves the frontend.
 
+export interface ModelStat {
+  model: string
+  runs: number
+  coding_questions: number
+  success_rate: number | null // fraction 0-1; null if no CODING data observed yet
+}
+
 export interface ConfigResponse {
   accounts: string[]
   recommended_models: string[]
+  model_stats: ModelStat[]
   default_model: string
   default_retries: number
 }

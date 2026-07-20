@@ -12,10 +12,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { api, type ConfigResponse } from '@/lib/api'
+import { api, type ConfigResponse, type ModelStat } from '@/lib/api'
 
 const CUSTOM_MODEL = '__custom__'
 const MAX_RECENT_URLS = 8
+
+// Combine data-driven stats (from real run history) with the curated recommended list --
+// models with a known CODING success rate sort first (best first), then unproven ones.
+// Success rate is deliberately CODING-only server-side: MCQ questions are always recorded
+// PASSED the instant an option is picked, so they'd make every model look near-100%.
+function buildModelOptions(config: ConfigResponse | null): { model: string; stat: ModelStat | null }[] {
+  if (!config) return []
+  const statByModel = new Map(config.model_stats.map((s) => [s.model, s]))
+  const allModels = new Set([...config.model_stats.map((s) => s.model), ...config.recommended_models])
+  const options = [...allModels].map((model) => ({ model, stat: statByModel.get(model) ?? null }))
+  options.sort((a, b) => {
+    const ra = a.stat?.success_rate
+    const rb = b.stat?.success_rate
+    if (ra == null && rb == null) return 0
+    if (ra == null) return 1
+    if (rb == null) return -1
+    return rb - ra
+  })
+  return options
+}
+
+function formatModelLabel(model: string, stat: ModelStat | null): string {
+  if (!stat || stat.success_rate == null) return model
+  const pct = Math.round(stat.success_rate * 100)
+  return `${model} — ${pct}% success (${stat.runs} run${stat.runs === 1 ? '' : 's'})`
+}
 
 export default function NewRun() {
   const navigate = useNavigate()
@@ -167,14 +193,18 @@ export default function NewRun() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(config?.recommended_models ?? []).map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
+                      {buildModelOptions(config).map(({ model, stat }) => (
+                        <SelectItem key={model} value={model}>
+                          {formatModelLabel(model, stat)}
                         </SelectItem>
                       ))}
                       <SelectItem value={CUSTOM_MODEL}>Custom / other model...</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Success rate is measured on coding questions only, from this tool's own run
+                    history. Models with no data yet are listed without a rate.
+                  </p>
                   {modelChoice === CUSTOM_MODEL && (
                     <Input
                       className="mt-2"
