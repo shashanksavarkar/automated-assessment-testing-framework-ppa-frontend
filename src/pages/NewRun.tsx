@@ -56,6 +56,7 @@ export default function NewRun() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [recentUrls, setRecentUrls] = useState<string[]>([])
+  const [lastUsedByAccount, setLastUsedByAccount] = useState<Record<string, string>>({})
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
@@ -71,8 +72,10 @@ export default function NewRun() {
     api
       .listRuns()
       .then((runs) => {
+        // Runs come back most-recent-first, so the first hit per URL/account is the latest.
         const seen = new Set<string>()
         const urls: string[] = []
+        const lastUsed: Record<string, string> = {}
         for (const r of runs) {
           if (!seen.has(r.assessment_url)) {
             seen.add(r.assessment_url)
@@ -80,7 +83,13 @@ export default function NewRun() {
           }
           if (urls.length >= MAX_RECENT_URLS) break
         }
+        for (const r of runs) {
+          if (!(r.test_account_label in lastUsed)) {
+            lastUsed[r.test_account_label] = r.started_at_fmt ?? r.created_at_fmt ?? ''
+          }
+        }
         setRecentUrls(urls)
+        setLastUsedByAccount(lastUsed)
       })
       .catch(() => {})
   }, [])
@@ -150,7 +159,7 @@ export default function NewRun() {
               <SelectContent>
                 {(config?.accounts ?? ['Default']).map((label) => (
                   <SelectItem key={label} value={label}>
-                    {label}
+                    {lastUsedByAccount[label] ? `${label} — last used ${lastUsedByAccount[label]}` : `${label} — unused so far`}
                   </SelectItem>
                 ))}
               </SelectContent>
