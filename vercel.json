@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://automated-assessment-testing-framework.onrender.com/api/:path*"
+    }
+  ]
+}
