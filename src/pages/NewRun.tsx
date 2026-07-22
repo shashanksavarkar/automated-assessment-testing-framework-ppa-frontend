@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Select,
@@ -53,13 +52,11 @@ export default function NewRun() {
 
   const [assessmentUrl, setAssessmentUrl] = useState('')
   const [note, setNote] = useState('')
-  const [headless, setHeadless] = useState(true)
   const [account, setAccount] = useState('Default')
   const [modelChoice, setModelChoice] = useState<string>('')
   const [customModel, setCustomModel] = useState('')
   const [maxRetries, setMaxRetries] = useState(2)
   const [error, setError] = useState<string | null>(null)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   // Seed form defaults once config data arrives -- react-query owns the fetch/cache, this
   // just applies it to the (still-local, still-editable) form state on first load.
@@ -99,7 +96,7 @@ export default function NewRun() {
     try {
       const { id } = await createRun.mutateAsync({
         assessment_url: assessmentUrl.trim(),
-        headless,
+        headless: true,
         test_account_label: account,
         model,
         max_retries: maxRetries,
@@ -174,79 +171,48 @@ export default function NewRun() {
             <p className="text-xs text-muted-foreground">Shown alongside this run in History, so it's easy to tell runs apart later.</p>
           </div>
 
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              {showAdvanced ? '▾ Hide advanced settings' : '▸ Advanced settings (model, retries, browser)'}
-            </button>
-          </div>
-
-          {showAdvanced && (
-            <div className="space-y-4 rounded-md border p-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>LLM model (NVIDIA NIM)</Label>
-                  <Select value={modelChoice} onValueChange={(v) => v && setModelChoice(v)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {buildModelOptions(config).map(({ model, stat }) => (
-                        <SelectItem key={model} value={model}>
-                          {formatModelLabel(model, stat)}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value={CUSTOM_MODEL}>Custom / other model...</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Success rate is measured on coding questions only, from this tool's own run
-                    history. Models with no data yet are listed without a rate.
-                  </p>
-                  {modelChoice === CUSTOM_MODEL && (
-                    <Input
-                      className="mt-2"
-                      placeholder="e.g. meta/llama-3.1-8b-instruct"
-                      value={customModel}
-                      onChange={(e) => setCustomModel(e.target.value)}
-                    />
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="max_retries">Coding retry attempts (1-5)</Label>
-                  <Input
-                    id="max_retries"
-                    type="number"
-                    min={1}
-                    max={5}
-                    value={maxRetries}
-                    onChange={(e) => setMaxRetries(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="headless"
-                    checked={headless}
-                    onCheckedChange={(v) => setHeadless(v === true)}
-                  />
-                  <Label htmlFor="headless" className="font-normal">
-                    Run headless (no visible browser window)
-                  </Label>
-                </div>
-                <p className="pl-6 text-xs text-muted-foreground">
-                  Uncheck this to watch the browser drive the assessment live — useful for
-                  spot-checking a failure. Leave it checked for normal unattended runs.
-                </p>
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>LLM model (NVIDIA NIM)</Label>
+              <Select value={modelChoice} onValueChange={(v) => v && setModelChoice(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildModelOptions(config).map(({ model, stat }) => (
+                    <SelectItem key={model} value={model}>
+                      {formatModelLabel(model, stat)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM_MODEL}>Custom / other model...</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Success rate is measured on coding questions only, from this tool's own run
+                history. Models with no data yet are listed without a rate.
+              </p>
+              {modelChoice === CUSTOM_MODEL && (
+                <Input
+                  className="mt-2"
+                  placeholder="e.g. meta/llama-3.1-8b-instruct"
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                />
+              )}
             </div>
-          )}
+
+            <div className="space-y-2">
+              <Label htmlFor="max_retries">Coding retry attempts (1-5)</Label>
+              <Input
+                id="max_retries"
+                type="number"
+                min={1}
+                max={5}
+                value={maxRetries}
+                onChange={(e) => setMaxRetries(Number(e.target.value))}
+              />
+            </div>
+          </div>
 
           {error && (
             <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
