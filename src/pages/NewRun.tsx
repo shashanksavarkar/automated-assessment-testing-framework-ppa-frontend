@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { api, type ConfigResponse, type ModelStat } from '@/lib/api'
+import type { ConfigResponse, ModelStat } from '@/lib/api'
+import { useConfig, useCreateRun, useRuns } from '@/lib/queries'
 
 const CUSTOM_MODEL = '__custom__'
 const MAX_RECENT_URLS = 8
@@ -22,7 +23,7 @@ const MAX_RECENT_URLS = 8
 // models with a known CODING success rate sort first (best first), then unproven ones.
 // Success rate is deliberately CODING-only server-side: MCQ questions are always recorded
 // PASSED the instant an option is picked, so they'd make every model look near-100%.
-function buildModelOptions(config: ConfigResponse | null): { model: string; stat: ModelStat | null }[] {
+function buildModelOptions(config: ConfigResponse | undefined): { model: string; stat: ModelStat | null }[] {
   if (!config) return []
   const statByModel = new Map(config.model_stats.map((s) => [s.model, s]))
   const allModels = new Set([...config.model_stats.map((s) => s.model), ...config.recommended_models])
@@ -46,7 +47,10 @@ function formatModelLabel(model: string, stat: ModelStat | null): string {
 
 export default function NewRun() {
   const navigate = useNavigate()
-  const [config, setConfig] = useState<ConfigResponse | null>(null)
+  const { data: config } = useConfig()
+  const { data: runs } = useRuns()
+  const createRun = useCreateRun()
+
   const [assessmentUrl, setAssessmentUrl] = useState('')
   const [note, setNote] = useState('')
   const [headless, setHeadless] = useState(true)
@@ -55,37 +59,31 @@ export default function NewRun() {
   const [customModel, setCustomModel] = useState('')
   const [maxRetries, setMaxRetries] = useState(2)
   const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [recentUrls, setRecentUrls] = useState<string[]>([])
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // Seed form defaults once config data arrives -- react-query owns the fetch/cache, this
+  // just applies it to the (still-local, still-editable) form state on first load.
   useEffect(() => {
-    api.getConfig().then((c) => {
-      setConfig(c)
-      setAccount(c.accounts[0] ?? 'Default')
-      setModelChoice(c.default_model)
-      setMaxRetries(c.default_retries)
-    })
-  }, [])
+    if (!config) return
+    setAccount(config.accounts[0] ?? 'Default')
+    setModelChoice(config.default_model)
+    setMaxRetries(config.default_retries)
+  }, [config])
 
-  useEffect(() => {
-    api
-      .listRuns()
-      .then((runs) => {
-        // Runs come back most-recent-first, so the first hit per URL is the latest.
-        const seen = new Set<string>()
-        const urls: string[] = []
-        for (const r of runs) {
-          if (!seen.has(r.assessment_url)) {
-            seen.add(r.assessment_url)
-            urls.push(r.assessment_url)
-          }
-          if (urls.length >= MAX_RECENT_URLS) break
-        }
-        setRecentUrls(urls)
-      })
-      .catch(() => {})
-  }, [])
+  const recentUrls = useMemo(() => {
+    if (!runs) return []
+    // Runs come back most-recent-first, so the first hit per URL is the latest.
+    const seen = new Set<string>()
+    const urls: string[] = []
+    for (const r of runs) {
+      if (!seen.has(r.assessment_url)) {
+        seen.add(r.assessment_url)
+        urls.push(r.assessment_url)
+      }
+      if (urls.length >= MAX_RECENT_URLS) break
+    }
+    return urls
+  }, [runs])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -98,9 +96,8 @@ export default function NewRun() {
 
     const model = modelChoice === CUSTOM_MODEL ? customModel.trim() : modelChoice
 
-    setSubmitting(true)
     try {
-      const { id } = await api.createRun({
+      const { id } = await createRun.mutateAsync({
         assessment_url: assessmentUrl.trim(),
         headless,
         test_account_label: account,
@@ -114,7 +111,6 @@ export default function NewRun() {
       const message = err instanceof Error ? err.message : 'Failed to start the run.'
       setError(message)
       toast.error(message)
-      setSubmitting(false)
     }
   }
 
@@ -259,8 +255,8 @@ export default function NewRun() {
           )}
 
           <div className="space-y-2">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Starting…' : 'Run assessment'}
+            <Button type="submit" disabled={createRun.isPending}>
+              {createRun.isPending ? 'Starting…' : 'Run assessment'}
             </Button>
             <p className="text-xs text-muted-foreground">
               Typically takes 10–15 minutes depending on the number of sections. Runs happen

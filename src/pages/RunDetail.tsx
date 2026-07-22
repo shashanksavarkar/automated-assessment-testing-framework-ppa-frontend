@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronRight, Pin, PinOff } from 'lucide-react'
+import { ChevronRight, Loader2, Pin, PinOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -10,9 +10,8 @@ import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import StatusBadge from '@/components/StatusBadge'
 import CopyButton from '@/components/CopyButton'
-import { api, type Question, type RunView } from '@/lib/api'
-
-const POLL_MS = 1500
+import type { Question } from '@/lib/api'
+import { useCancelRun, useRun } from '@/lib/queries'
 
 function AttemptCode({ attempt }: { attempt: { attempt: number; code: string; err?: string | null } }) {
   return (
@@ -117,37 +116,14 @@ function RunDetailSkeleton() {
 
 export default function RunDetail() {
   const { runId } = useParams<{ runId: string }>()
-  const [run, setRun] = useState<RunView | null>(null)
-  const [notFound, setNotFound] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
+  const { data: run, isError, isLoading } = useRun(runId)
+  const cancelRun = useCancelRun(runId)
   const [autoScroll, setAutoScroll] = useState(true)
-  const pollingRef = useRef(true)
   const timelineRef = useRef<HTMLDivElement>(null)
   const toastedFinalRef = useRef(false)
 
   useEffect(() => {
-    if (!runId) return
-    pollingRef.current = true
     toastedFinalRef.current = false
-
-    async function tick() {
-      try {
-        const data = await api.getRun(runId!)
-        setRun(data)
-        if (FINAL_STATUSES.has(data.status)) {
-          pollingRef.current = false
-        }
-      } catch {
-        setNotFound(true)
-        pollingRef.current = false
-      }
-      if (pollingRef.current) setTimeout(tick, POLL_MS)
-    }
-    tick()
-
-    return () => {
-      pollingRef.current = false
-    }
   }, [runId])
 
   useEffect(() => {
@@ -171,7 +147,7 @@ export default function RunDetail() {
     }
   }, [run?.telemetry?.timeline?.length, autoScroll])
 
-  if (notFound)
+  if (isError)
     return (
       <div className="space-y-2">
         <p className="text-muted-foreground">Run not found.</p>
@@ -180,7 +156,7 @@ export default function RunDetail() {
         </Link>
       </div>
     )
-  if (!run) return <RunDetailSkeleton />
+  if (isLoading || !run) return <RunDetailSkeleton />
 
   const t = run.telemetry
   const isFinal = FINAL_STATUSES.has(run.status)
@@ -191,17 +167,12 @@ export default function RunDetail() {
   const progressPct = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : null
 
   async function handleCancel() {
-    if (!runId) return
     if (!window.confirm('Stop this run? This kills the browser/automation process immediately.')) return
-    setCancelling(true)
     try {
-      await api.cancelRun(runId)
-      setRun(await api.getRun(runId)) // reflect the new status immediately; the poll loop keeps it fresh after
+      await cancelRun.mutateAsync()
       toast('Cancelling run…')
     } catch {
       toast.error('Failed to cancel the run. It may already have finished.')
-    } finally {
-      setCancelling(false)
     }
   }
 
@@ -238,8 +209,8 @@ export default function RunDetail() {
           <div className="flex items-center gap-3">
             <StatusBadge status={run.status} />
             {canCancel && (
-              <Button variant="destructive" size="sm" disabled={cancelling} onClick={handleCancel}>
-                {cancelling ? 'Stopping…' : 'Stop run'}
+              <Button variant="destructive" size="sm" disabled={cancelRun.isPending} onClick={handleCancel}>
+                {cancelRun.isPending ? 'Stopping…' : 'Stop run'}
               </Button>
             )}
           </div>
@@ -272,6 +243,13 @@ export default function RunDetail() {
             <p className="mt-4 text-sm text-muted-foreground">
               Queued — position {run.queue_position} in line. Only one run happens at a time.
             </p>
+          )}
+
+          {run.status === 'running' && t && t.timeline.length > 0 && progressPct === null && (
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" />
+              <span>{t.timeline[t.timeline.length - 1].e}</span>
+            </div>
           )}
 
           {!isFinal && progressPct !== null && (

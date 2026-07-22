@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -12,18 +12,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import StatusBadge from '@/components/StatusBadge'
-import { api, type RunStatus, type RunView } from '@/lib/api'
+import type { RunStatus } from '@/lib/api'
+import { useRuns } from '@/lib/queries'
 
 const STATUS_FILTERS: Array<RunStatus | 'all'> = ['all', 'queued', 'running', 'completed', 'failed', 'cancelled']
 
 export default function History() {
-  const [runs, setRuns] = useState<RunView[] | null>(null)
+  const { data: runs } = useRuns({ refetch: true })
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<RunStatus | 'all'>('all')
-
-  useEffect(() => {
-    api.listRuns().then(setRuns)
-  }, [])
 
   const filtered = useMemo(() => {
     if (!runs) return []
@@ -84,7 +81,7 @@ export default function History() {
           </div>
         ) : runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No runs yet. <Link to="/" className="underline underline-offset-2">Start one</Link>.
+            No runs yet. <Link to="/new" className="underline underline-offset-2">Start one</Link>.
           </p>
         ) : filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground">No runs match this search/filter.</p>

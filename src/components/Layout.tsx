@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { ClipboardCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
 import ThemeToggle from '@/components/theme-toggle'
@@ -29,11 +30,15 @@ export default function Layout() {
     <div className="min-h-svh bg-background">
       <header className="border-b">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <Link to="/" className="font-semibold">
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <ClipboardCheck className="size-4" />
+            </span>
             PPA Assessment Runner
           </Link>
           <nav className="flex items-center gap-6">
-            {navLink('/', 'New Run')}
+            {navLink('/', 'Dashboard')}
+            {navLink('/new', 'New Run')}
             {navLink('/history', 'History')}
             <ThemeToggle />
             <span className="flex items-center gap-2 border-l pl-6 text-sm text-muted-foreground">
