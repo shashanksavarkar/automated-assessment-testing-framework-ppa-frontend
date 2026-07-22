@@ -16,6 +16,7 @@ import type { ConfigResponse, ModelStat } from '@/lib/api'
 import { useConfig, useCreateRun, useRuns } from '@/lib/queries'
 
 const CUSTOM_MODEL = '__custom__'
+const CUSTOM_ACCOUNT = '__custom__'
 const MAX_RECENT_URLS = 8
 
 // Combine data-driven stats (from real run history) with the curated recommended list --
@@ -53,6 +54,10 @@ export default function NewRun() {
   const [assessmentUrl, setAssessmentUrl] = useState('')
   const [note, setNote] = useState('')
   const [account, setAccount] = useState('Default')
+  const [customEmail, setCustomEmail] = useState('')
+  const [customName, setCustomName] = useState('BOT')
+  const [customMobile, setCustomMobile] = useState('9999999999')
+  const [customRoll, setCustomRoll] = useState('9988774455')
   const [modelChoice, setModelChoice] = useState<string>('')
   const [customModel, setCustomModel] = useState('')
   const [maxRetries, setMaxRetries] = useState(2)
@@ -66,6 +71,8 @@ export default function NewRun() {
     setModelChoice(config.default_model)
     setMaxRetries(config.default_retries)
   }, [config])
+
+  const modelOptions = useMemo(() => buildModelOptions(config), [config])
 
   const recentUrls = useMemo(() => {
     if (!runs) return []
@@ -91,6 +98,11 @@ export default function NewRun() {
       return
     }
 
+    if (account === CUSTOM_ACCOUNT && !/^[^\s@]+@yopmail\.com$/i.test(customEmail.trim())) {
+      setError('Custom account email must be a @yopmail.com address (that\'s what fetches the OTP).')
+      return
+    }
+
     const model = modelChoice === CUSTOM_MODEL ? customModel.trim() : modelChoice
 
     try {
@@ -98,6 +110,15 @@ export default function NewRun() {
         assessment_url: assessmentUrl.trim(),
         headless: true,
         test_account_label: account,
+        custom_account:
+          account === CUSTOM_ACCOUNT
+            ? {
+                email: customEmail.trim(),
+                name: customName.trim() || 'BOT',
+                mobile: customMobile.trim() || '9999999999',
+                roll_number: customRoll.trim() || '9988774455',
+              }
+            : null,
         model,
         max_retries: maxRetries,
         note: note.trim() || null,
@@ -143,7 +164,7 @@ export default function NewRun() {
             <Label>Test candidate account</Label>
             <Select value={account} onValueChange={(v) => v && setAccount(v)}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{(v: string) => (v === CUSTOM_ACCOUNT ? 'Custom / dummy account...' : v)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {(config?.accounts ?? ['Default']).map((label) => (
@@ -151,6 +172,7 @@ export default function NewRun() {
                     {label}
                   </SelectItem>
                 ))}
+                <SelectItem value={CUSTOM_ACCOUNT}>Custom / dummy account...</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
@@ -158,6 +180,35 @@ export default function NewRun() {
               reset. A previous run's answers stay submitted, so a new run resumes from
               where the last one left off rather than starting the assessment over.
             </p>
+            {account === CUSTOM_ACCOUNT && (
+              <div className="grid grid-cols-2 gap-4 rounded-md border p-4">
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="custom_email">Yopmail email</Label>
+                  <Input
+                    id="custom_email"
+                    placeholder="e.g. myteam-test1@yopmail.com"
+                    value={customEmail}
+                    onChange={(e) => setCustomEmail(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must end in @yopmail.com — Yopmail needs no signup, so any address here
+                    works immediately as a fresh candidate identity.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="custom_name">Name</Label>
+                  <Input id="custom_name" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="custom_mobile">Mobile</Label>
+                  <Input id="custom_mobile" value={customMobile} onChange={(e) => setCustomMobile(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="custom_roll">Roll number</Label>
+                  <Input id="custom_roll" value={customRoll} onChange={(e) => setCustomRoll(e.target.value)} />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -176,10 +227,16 @@ export default function NewRun() {
               <Label>LLM model (NVIDIA NIM)</Label>
               <Select value={modelChoice} onValueChange={(v) => v && setModelChoice(v)}>
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(v: string) => {
+                      if (v === CUSTOM_MODEL) return 'Custom / other model...'
+                      const stat = modelOptions.find((o) => o.model === v)?.stat ?? null
+                      return formatModelLabel(v, stat)
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {buildModelOptions(config).map(({ model, stat }) => (
+                  {modelOptions.map(({ model, stat }) => (
                     <SelectItem key={model} value={model}>
                       {formatModelLabel(model, stat)}
                     </SelectItem>

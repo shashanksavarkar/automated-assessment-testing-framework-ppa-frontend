@@ -18,10 +18,18 @@ export interface ConfigResponse {
   default_retries: number
 }
 
+export interface CustomAccount {
+  email: string
+  name?: string
+  mobile?: string
+  roll_number?: string
+}
+
 export interface RunCreateRequest {
   assessment_url: string
   headless: boolean
   test_account_label: string
+  custom_account?: CustomAccount | null
   model?: string | null
   max_retries: number
   note?: string | null
