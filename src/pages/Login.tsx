@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,7 +26,9 @@ export default function Login() {
       await login(email.trim(), password)
       navigate(from, { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed.')
+      const message = err instanceof Error ? err.message : 'Login failed.'
+      setError(message)
+      toast.error(message)
     } finally {
       setSubmitting(false)
     }

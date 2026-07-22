@@ -1,16 +1,45 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import StatusBadge from '@/components/StatusBadge'
-import { api, type RunView } from '@/lib/api'
+import { api, type RunStatus, type RunView } from '@/lib/api'
+
+const STATUS_FILTERS: Array<RunStatus | 'all'> = ['all', 'queued', 'running', 'completed', 'failed', 'cancelled']
 
 export default function History() {
   const [runs, setRuns] = useState<RunView[] | null>(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState<RunStatus | 'all'>('all')
 
   useEffect(() => {
     api.listRuns().then(setRuns)
   }, [])
+
+  const filtered = useMemo(() => {
+    if (!runs) return []
+    const q = search.trim().toLowerCase()
+    return runs.filter((r) => {
+      if (status !== 'all' && r.status !== status) return false
+      if (!q) return true
+      return (
+        r.assessment_url.toLowerCase().includes(q) ||
+        r.test_account_label.toLowerCase().includes(q) ||
+        (r.note ?? '').toLowerCase().includes(q) ||
+        (r.created_by ?? '').toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q)
+      )
+    })
+  }, [runs, search, status])
 
   return (
     <Card>
@@ -18,13 +47,47 @@ export default function History() {
         <CardTitle>Past runs</CardTitle>
         <CardDescription>Most recent first.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {runs && runs.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Search by URL, account, note, or run ID…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
+            <Select value={status} onValueChange={(v) => v && setStatus(v as RunStatus | 'all')}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s === 'all' ? 'All statuses' : s[0].toUpperCase() + s.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {(search || status !== 'all') && (
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} of {runs.length} run{runs.length === 1 ? '' : 's'}
+              </p>
+            )}
+          </div>
+        )}
+
         {!runs ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
         ) : runs.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No runs yet. <Link to="/" className="underline underline-offset-2">Start one</Link>.
           </p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No runs match this search/filter.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -39,7 +102,7 @@ export default function History() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {runs.map((r) => (
+              {filtered.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
                     <StatusBadge status={r.status} />

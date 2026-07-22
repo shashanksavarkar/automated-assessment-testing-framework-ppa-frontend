@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -107,9 +108,12 @@ export default function NewRun() {
         max_retries: maxRetries,
         note: note.trim() || null,
       })
+      toast.success('Run started.')
       navigate(`/runs/${id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start the run.')
+      const message = err instanceof Error ? err.message : 'Failed to start the run.'
+      setError(message)
+      toast.error(message)
       setSubmitting(false)
     }
   }
