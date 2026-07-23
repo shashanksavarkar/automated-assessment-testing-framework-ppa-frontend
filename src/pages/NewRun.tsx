@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ConfigResponse, ModelStat } from '@/lib/api'
+import type { ConfigResponse, ModelStat, RunView } from '@/lib/api'
 import { useConfig, useCreateRun, useRuns } from '@/lib/queries'
 
 const CUSTOM_MODEL = '__custom__'
@@ -45,6 +45,35 @@ function formatModelLabel(model: string, stat: ModelStat | null): string {
   return `${model} — ${pct}% success (${stat.runs} run${stat.runs === 1 ? '' : 's'})`
 }
 
+interface DurationEstimate {
+  matchedUrl: boolean
+  count: number
+  avgMinutes: number
+  minMinutes: number
+  maxMinutes: number
+}
+
+// Only "completed" runs count -- a failed/cancelled run's duration is an artifact of when
+// it happened to die, not a representative full-run time, and would skew the estimate low.
+function computeDurationEstimate(runs: RunView[] | undefined, url: string): DurationEstimate | null {
+  if (!runs) return null
+  const finished = (r: RunView) => r.status === 'completed' && r.started_at != null && r.finished_at != null
+  const trimmedUrl = url.trim()
+
+  const forUrl = trimmedUrl ? runs.filter((r) => finished(r) && r.assessment_url === trimmedUrl) : []
+  const scoped = forUrl.length > 0 ? forUrl : runs.filter(finished)
+  if (scoped.length === 0) return null
+
+  const minutes = scoped.map((r) => (r.finished_at! - r.started_at!) / 60)
+  return {
+    matchedUrl: forUrl.length > 0,
+    count: scoped.length,
+    avgMinutes: minutes.reduce((a, b) => a + b, 0) / minutes.length,
+    minMinutes: Math.min(...minutes),
+    maxMinutes: Math.max(...minutes),
+  }
+}
+
 export default function NewRun() {
   const navigate = useNavigate()
   const { data: config } = useConfig()
@@ -73,6 +102,11 @@ export default function NewRun() {
   }, [config])
 
   const modelOptions = useMemo(() => buildModelOptions(config), [config])
+
+  const durationEstimate = useMemo(
+    () => computeDurationEstimate(runs, assessmentUrl),
+    [runs, assessmentUrl],
+  )
 
   const recentUrls = useMemo(() => {
     if (!runs) return []
@@ -282,9 +316,25 @@ export default function NewRun() {
               {createRun.isPending ? 'Starting…' : 'Run assessment'}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Typically takes 10–15 minutes depending on the number of sections. Runs happen
-              one at a time — you'll land on a live progress page next, and if another run is
-              already in progress, yours will wait in queue.
+              {durationEstimate === null ? (
+                'Typically takes 10–15 minutes depending on the number of sections.'
+              ) : durationEstimate.matchedUrl ? (
+                <>
+                  This exact link has completed {durationEstimate.count} time
+                  {durationEstimate.count === 1 ? '' : 's'} before, averaging ~
+                  {Math.round(durationEstimate.avgMinutes)} min
+                  {durationEstimate.count > 1 &&
+                    ` (${Math.round(durationEstimate.minMinutes)}–${Math.round(durationEstimate.maxMinutes)} min range)`}
+                  .
+                </>
+              ) : (
+                <>
+                  No history yet for this exact link — past completed runs overall averaged ~
+                  {Math.round(durationEstimate.avgMinutes)} min.
+                </>
+              )}{' '}
+              Runs happen one at a time — you'll land on a live progress page next, and if
+              another run is already in progress, yours will wait in queue.
             </p>
           </div>
         </form>
