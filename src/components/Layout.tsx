@@ -2,7 +2,6 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ClipboardCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth'
-import ThemeToggle from '@/components/theme-toggle'
 
 export default function Layout() {
   const location = useLocation()
@@ -40,7 +39,6 @@ export default function Layout() {
             {navLink('/', 'Dashboard')}
             {navLink('/new', 'New Run')}
             {navLink('/history', 'History')}
-            <ThemeToggle />
             <span className="flex items-center gap-2 border-l pl-6 text-sm text-muted-foreground">
               {email}
               <button onClick={handleLogout} className="underline underline-offset-2 hover:text-foreground">
