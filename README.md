@@ -1,32 +1,50 @@
-# React + TypeScript + Vite
+# PPA Assessment Runner — Trainer UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React web app for trainers to run automated coding assessments and review results. Trainers sign in, pick a test account and an LLM model, start a run, watch its progress, and review submission reports and history.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Trainer login** — all routes are gated behind authentication.
+- **Dashboard** — overview of recent runs and status.
+- **New Run** — choose a test account (saved or custom), a model ranked by real success rate from run history, retry settings, and an optional note. Shows data-backed run-time estimates.
+- **Run detail** — live progress, a stop/cancel control, and a clear submission-confirmed/failed report.
+- **History** — filterable list of past runs.
+- Error boundary, code-split routes, toast notifications.
 
-## React Compiler
+## Tech stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19 + TypeScript, built with Vite
+- React Router, TanStack Query for server state
+- Tailwind CSS 4 with shadcn/ui components (Base UI primitives)
+- Lucide icons, Sonner toasts, Geist font
 
-## Expanding the Oxlint configuration
+## Getting started
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Requires Node.js 20+ and the backend running on port 8000 (see the backend README).
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev        # http://127.0.0.1:5173 — /api is proxied to the backend
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### Other scripts
+
+```bash
+npm run build      # type-check and production build to dist/
+npm run preview    # serve the production build locally
+npm run lint       # oxlint
+```
+
+## Deployment
+
+- `vercel.json` rewrites SPA routes to `index.html` and proxies `/api/*` to the hosted backend.
+- The backend can also serve the built `dist/` folder directly, giving a single-process deployment.
+
+## Project layout
+
+```
+src/
+  pages/          Login, Dashboard, NewRun, RunDetail, History
+  components/     Layout, status badges, error boundary, shadcn UI primitives
+  lib/            API client, auth context, query hooks, utilities
+```
